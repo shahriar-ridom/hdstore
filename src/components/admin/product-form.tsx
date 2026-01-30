@@ -247,7 +247,6 @@ export function ProductForm() {
         // Form will redirect on success
       }
     } catch (error) {
-      // Next.js redirect() throws a NEXT_REDIRECT error - this is expected behavior
       if (error instanceof Error && error.message === "NEXT_REDIRECT") {
         toast.success("Product Created!", {
           id: uploadToastId,

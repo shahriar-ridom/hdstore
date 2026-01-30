@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function Hero() {
   return (
     <section className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden bg-background pt-40 md:pt-30">
@@ -44,8 +46,8 @@ export function Hero() {
 
           {/* CTA */}
           <div className="flex flex-col sm:flex-row items-center gap-6 animate-in slide-in-from-bottom-4 duration-1000 delay-500 fill-mode-forwards">
-            <a
-              href="#browse"
+            <Link
+              href="/store"
               className="group relative inline-flex items-center justify-center gap-3 overflow-hidden rounded-full bg-primary px-8 py-4 font-bold text-primary-foreground transition-transform duration-300 hover:scale-105 active:scale-95"
             >
               <span>Access Vault</span>

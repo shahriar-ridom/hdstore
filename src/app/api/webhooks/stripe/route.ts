@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -80,6 +81,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // Return 200 OK to acknowledge receipt
+  revalidatePath("/orders");
+  revalidateTag("admin-dashboard", { expire: 0 });
+  revalidateTag("admin-users", { expire: 0 });
+  revalidateTag("admin-products", { expire: 0 });
+  revalidateTag("admin-orders", { expire: 0 });
   return new NextResponse("Received", { status: 200 });
 }

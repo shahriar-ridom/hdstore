@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { products } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -60,6 +60,7 @@ export async function addProduct(
   }
 
   // Revalidate & Redirect
+  revalidateTag("admin-products", { expire: 0 });
   redirect("/admin/products");
 }
 

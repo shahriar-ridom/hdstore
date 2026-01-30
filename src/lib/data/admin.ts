@@ -1,10 +1,10 @@
+"use cache";
 import { db } from "@/db";
 import { products, orders, users } from "@/db/schema";
 import { count, sum, desc, eq, sql } from "drizzle-orm";
 import { cacheTag, cacheLife } from "next/cache";
 
 export async function getAdminOrdersData() {
-  "use cache";
   cacheTag("admin-orders");
   cacheLife("minutes");
 
@@ -79,7 +79,6 @@ export async function getAdminOrdersData() {
 }
 
 export async function getAdminProductsData() {
-  "use cache";
   cacheTag("admin-products");
   cacheLife("minutes");
 
@@ -101,7 +100,6 @@ export async function getAdminProductsData() {
 }
 
 export async function getAdminUsersData() {
-  "use cache";
   cacheTag("admin-users");
   cacheLife("minutes");
 
@@ -154,5 +152,67 @@ export async function getAdminUsersData() {
     totalUsers,
     customerPurchases,
     customerList,
+  };
+}
+
+export async function getAdminDashboardData() {
+  cacheTag("admin-dashboard");
+  cacheLife("minutes");
+
+  const [
+    totalRevenueResult,
+    totalOrdersResult,
+    totalProductsResult,
+    totalCustomersResult,
+    recentOrdersList,
+    topProductsList,
+  ] = await Promise.all([
+    // Total Revenue
+    db.select({ total: sum(orders.pricePaidInCents) }).from(orders),
+    // Total Orders
+    db.select({ count: count() }).from(orders),
+    // Total Products
+    db.select({ count: count() }).from(products),
+    // Total Customers
+    db
+      .selectDistinct({ userId: orders.userId })
+      .from(orders)
+      .then((res) => res.length),
+    // Recent Orders (last 5)
+    db
+      .select({
+        orderId: orders.id,
+        pricePaid: orders.pricePaidInCents,
+        createdAt: orders.createdAt,
+        productName: products.name,
+        userEmail: users.email,
+        userName: users.name,
+      })
+      .from(orders)
+      .innerJoin(products, eq(orders.productId, products.id))
+      .innerJoin(users, eq(orders.userId, users.id))
+      .orderBy(desc(orders.createdAt))
+      .limit(5),
+    // Top Products by sales
+    db
+      .select({
+        productId: products.id,
+        productName: products.name,
+        salesCount: count(orders.id),
+        totalRevenue: sum(orders.pricePaidInCents),
+      })
+      .from(products)
+      .leftJoin(orders, eq(products.id, orders.productId))
+      .groupBy(products.id)
+      .orderBy(desc(count(orders.id)))
+      .limit(5),
+  ]);
+  return {
+    totalRevenueResult,
+    totalOrdersResult,
+    totalProductsResult,
+    totalCustomersResult,
+    recentOrdersList,
+    topProductsList,
   };
 }

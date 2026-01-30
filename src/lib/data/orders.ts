@@ -5,7 +5,6 @@ import { cacheTag, cacheLife } from "next/cache";
 
 export async function getUserOrders(userId: string) {
   "use cache";
-
   cacheTag(`user-orders-${userId}`);
   cacheLife("hours");
 

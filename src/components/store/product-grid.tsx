@@ -3,7 +3,14 @@ import { ProductCard } from "@/components/product-card";
 import { Suspense } from "react";
 import { ProductCardSkeleton } from "../loading-skeleton";
 
-export async function ProductGrid({ searchParams }: { searchParams: any }) {
+export async function ProductGrid({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    search?: string;
+    [key: string]: string | string[] | undefined;
+  }>;
+}) {
   const params = await searchParams;
 
   const allProducts = await getFilteredProducts(params);
