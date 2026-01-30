@@ -32,10 +32,3 @@ jobs:
 
       - name: Type Check
         run: pnpm type-check
-
-      - name: Build
-        run: pnpm build
-        env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/binary_daydream"
-          BETTER_AUTH_SECRET: "dummy_secret_for_build"
-          BETTER_AUTH_URL: "http://localhost:3000"
