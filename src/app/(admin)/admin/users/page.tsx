@@ -1,8 +1,12 @@
-import { db } from "@/db";
-import { products, orders, users } from "@/db/schema";
-import { count, sum, desc, eq, sql } from "drizzle-orm";
+import {
+  CustomerTableSkeleton,
+  UserDataSkeleton,
+} from "@/components/loading-skeleton";
 import { Badge } from "@/components/ui/badge";
+import { getAdminUsersData } from "@/lib/data/admin";
+import { Suspense } from "react";
 
+//Utility Functions
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -18,56 +22,10 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-export default async function AdminUsersPage() {
-  // Fetch all data in parallel
-  const [totalCustomersResult, totalUsersResult, customerList] =
-    await Promise.all([
-      // Customers (users with orders)
-      db
-        .selectDistinct({ userId: orders.userId })
-        .from(orders)
-        .then((res) => res.length),
-      // Total users
-      db.select({ count: count() }).from(users),
-      // Customers with their purchase details
-      db
-        .select({
-          userId: users.id,
-          userName: users.name,
-          userEmail: users.email,
-          userImage: users.image,
-          userRole: users.role,
-          userCreatedAt: users.createdAt,
-          totalOrders: count(orders.id),
-          totalSpent: sum(orders.pricePaidInCents),
-          lastOrderDate: sql<Date>`MAX(${orders.createdAt})`,
-        })
-        .from(users)
-        .leftJoin(orders, eq(users.id, orders.userId))
-        .groupBy(users.id)
-        .orderBy(desc(sum(orders.pricePaidInCents))),
-    ]);
-
-  const totalCustomers = totalCustomersResult;
-  const totalUsers = totalUsersResult[0]?.count ?? 0;
-
-  // Get purchases for each customer
-  const customerPurchases = await Promise.all(
-    customerList.map(async (customer) => {
-      const purchases = await db
-        .select({
-          orderId: orders.id,
-          productName: products.name,
-          pricePaid: orders.pricePaidInCents,
-          purchaseDate: orders.createdAt,
-        })
-        .from(orders)
-        .innerJoin(products, eq(orders.productId, products.id))
-        .where(eq(orders.userId, customer.userId))
-        .orderBy(desc(orders.createdAt));
-      return { ...customer, purchases };
-    }),
-  );
+//Customer Table Section
+async function CustomerTable() {
+  const { totalCustomers, totalUsers, customerList } =
+    await getAdminUsersData();
 
   // Calculate total lifetime value
   const totalLifetimeValue = customerList.reduce(
@@ -171,25 +129,7 @@ export default async function AdminUsersPage() {
   ];
 
   return (
-    <div className="space-y-8 p-8">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Customer Database
-            </span>
-          </div>
-          <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">
-            Customers
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Complete customer profiles with purchase history.
-          </p>
-        </div>
-      </div>
-
+    <>
       {/* STATS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
@@ -219,8 +159,209 @@ export default async function AdminUsersPage() {
           </div>
         ))}
       </div>
+    </>
+  );
+}
 
+//User Data Section
+async function UserData() {
+  const { customerPurchases } = await getAdminUsersData();
+  return (
+    <>
       {/* CUSTOMERS TABLE */}
+      {customerPurchases.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-4">
+            <svg
+              className="w-8 h-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+          </div>
+          <p className="text-lg font-medium text-foreground mb-1">
+            No users yet
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Users will appear here once they sign up
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {customerPurchases.map((customer) => (
+            <div
+              key={customer.userId}
+              className="p-6 hover:bg-secondary/20 transition-colors"
+            >
+              {/* Customer Header */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-linear-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
+                    {customer.userImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={customer.userImage}
+                        alt={customer.userName}
+                        className="h-12 w-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      customer.userEmail?.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-heading font-bold text-foreground">
+                        {customer.userName}
+                      </h3>
+                      {customer.userRole === "admin" && (
+                        <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {customer.userEmail}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Joined {formatDate(customer.userCreatedAt)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Customer Stats */}
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      {customer.totalOrders}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Orders</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-heading font-bold text-emerald-400">
+                      {formatCurrency(Number(customer.totalSpent ?? 0))}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Total Spent</p>
+                  </div>
+                  {customer.lastOrderDate && (
+                    <div className="text-center hidden sm:block">
+                      <p className="text-sm font-medium text-foreground">
+                        {formatDate(new Date(customer.lastOrderDate))}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Last Order
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Purchases List */}
+              {customer.purchases.length > 0 && (
+                <div className="mt-4 pl-16">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                    Purchase History
+                  </p>
+                  <div className="space-y-2">
+                    {customer.purchases.map((purchase) => (
+                      <div
+                        key={purchase.orderId}
+                        className="flex items-center justify-between rounded-lg bg-secondary/30 border border-border/50 px-4 py-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <svg
+                              className="w-4 h-4 text-primary"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                              />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {purchase.productName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(purchase.purchaseDate)}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="font-semibold text-emerald-400">
+                          {formatCurrency(purchase.pricePaid)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {customer.purchases.length === 0 && (
+                <div className="mt-4 pl-16">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 12H4"
+                      />
+                    </svg>
+                    <span className="text-sm">No purchases yet</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// Deafult Page
+export default function AdminUsersPage() {
+  return (
+    <div className="space-y-8 p-8">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Customer Database
+            </span>
+          </div>
+          <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">
+            Customers
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Complete customer profiles with purchase history.
+          </p>
+        </div>
+      </div>
+      <Suspense fallback={<CustomerTableSkeleton />}>
+        <CustomerTable />
+      </Suspense>
+
+      {/* Users Table */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="p-6 border-b border-border">
           <h2 className="text-xl font-heading font-bold text-foreground">
@@ -230,172 +371,9 @@ export default async function AdminUsersPage() {
             User accounts with their purchase history
           </p>
         </div>
-
-        {customerPurchases.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-4">
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            </div>
-            <p className="text-lg font-medium text-foreground mb-1">
-              No users yet
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Users will appear here once they sign up
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {customerPurchases.map((customer) => (
-              <div
-                key={customer.userId}
-                className="p-6 hover:bg-secondary/20 transition-colors"
-              >
-                {/* Customer Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-linear-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-lg font-bold shrink-0">
-                      {customer.userImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={customer.userImage}
-                          alt={customer.userName}
-                          className="h-12 w-12 rounded-full object-cover"
-                        />
-                      ) : (
-                        customer.userEmail?.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-heading font-bold text-foreground">
-                          {customer.userName}
-                        </h3>
-                        {customer.userRole === "admin" && (
-                          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
-                            Admin
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {customer.userEmail}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Joined {formatDate(customer.userCreatedAt)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Customer Stats */}
-                  <div className="flex items-center gap-6">
-                    <div className="text-center">
-                      <p className="text-2xl font-heading font-bold text-foreground">
-                        {customer.totalOrders}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Orders</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-heading font-bold text-emerald-400">
-                        {formatCurrency(Number(customer.totalSpent ?? 0))}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Total Spent
-                      </p>
-                    </div>
-                    {customer.lastOrderDate && (
-                      <div className="text-center hidden sm:block">
-                        <p className="text-sm font-medium text-foreground">
-                          {formatDate(new Date(customer.lastOrderDate))}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Last Order
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Purchases List */}
-                {customer.purchases.length > 0 && (
-                  <div className="mt-4 pl-16">
-                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-                      Purchase History
-                    </p>
-                    <div className="space-y-2">
-                      {customer.purchases.map((purchase) => (
-                        <div
-                          key={purchase.orderId}
-                          className="flex items-center justify-between rounded-lg bg-secondary/30 border border-border/50 px-4 py-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <svg
-                                className="w-4 h-4 text-primary"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {purchase.productName}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(purchase.purchaseDate)}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="font-semibold text-emerald-400">
-                            {formatCurrency(purchase.pricePaid)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {customer.purchases.length === 0 && (
-                  <div className="mt-4 pl-16">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20 12H4"
-                        />
-                      </svg>
-                      <span className="text-sm">No purchases yet</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <Suspense fallback={<UserDataSkeleton />}>
+          <UserData />
+        </Suspense>
       </div>
     </div>
   );

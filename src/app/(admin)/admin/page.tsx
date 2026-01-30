@@ -1,6 +1,3 @@
-import { db } from "@/db";
-import { products, orders, users } from "@/db/schema";
-import { count, sum, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getAdminDashboardData } from "@/lib/data/admin";
+import { Suspense } from "react";
 
+// Utility Functions
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -27,56 +27,189 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-export default async function AdminDashboardPage() {
-  // Fetch all stats in parallel
-  const [
+// Skeletons
+function RecentOrdersListSkeleton() {
+  return (
+    <Table>
+      <TableHeader className="bg-secondary/30">
+        <TableRow className="hover:bg-transparent border-border">
+          <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground py-4">
+            Customer
+          </TableHead>
+          <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Product
+          </TableHead>
+          <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Amount
+          </TableHead>
+          <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Date
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {[...Array(5)].map((_, i) => (
+          <TableRow key={i} className="border-border">
+            <TableCell className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-secondary/50 animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-4 w-32 bg-secondary/50 rounded animate-pulse" />
+                  <div className="h-3 w-40 bg-secondary/30 rounded animate-pulse" />
+                </div>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="h-4 w-36 bg-secondary/50 rounded animate-pulse" />
+            </TableCell>
+            <TableCell>
+              <div className="h-4 w-20 bg-secondary/50 rounded animate-pulse" />
+            </TableCell>
+            <TableCell>
+              <div className="h-4 w-24 bg-secondary/50 rounded animate-pulse" />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function StatusGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="relative rounded-2xl border border-border bg-card p-6 overflow-hidden"
+        >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-12 w-12 rounded-xl bg-secondary/50 animate-pulse" />
+            </div>
+            <div className="h-8 w-24 bg-secondary/50 rounded animate-pulse mb-1" />
+            <div className="h-4 w-32 bg-secondary/30 rounded animate-pulse mb-1" />
+            <div className="h-3 w-28 bg-secondary/20 rounded animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TopProductsListSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="h-5 w-32 bg-secondary/50 rounded animate-pulse mb-4" />
+      <div className="space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-secondary/50 animate-pulse" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="h-4 w-3/4 bg-secondary/50 rounded animate-pulse" />
+              <div className="h-3 w-1/2 bg-secondary/30 rounded animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Recent Orders List Function
+async function RecentOrdersList() {
+  const { recentOrdersList } = await getAdminDashboardData();
+  return (
+    <>
+      {recentOrdersList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-4">
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+          </div>
+          <p className="text-lg font-medium text-foreground mb-1">
+            No transactions yet
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Orders will appear here
+          </p>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader className="bg-secondary/30">
+            <TableRow className="hover:bg-transparent border-border">
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground py-4">
+                Customer
+              </TableHead>
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Product
+              </TableHead>
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Amount
+              </TableHead>
+              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Date
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {recentOrdersList.map((order) => (
+              <TableRow
+                key={order.orderId}
+                className="border-border hover:bg-secondary/20"
+              >
+                <TableCell className="py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-linear-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                      {order.userEmail?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground truncate max-w-37.5">
+                        {order.userName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate max-w-37.5">
+                        {order.userEmail}
+                      </p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-foreground">
+                  {order.productName}
+                </TableCell>
+                <TableCell className="text-sm font-semibold text-emerald-400">
+                  {formatCurrency(order.pricePaid)}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {formatDate(order.createdAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </>
+  );
+}
+
+// Status Grid Function
+async function StatusGrid() {
+  const {
     totalRevenueResult,
     totalOrdersResult,
     totalProductsResult,
     totalCustomersResult,
-    recentOrdersList,
-    topProductsList,
-  ] = await Promise.all([
-    // Total Revenue
-    db.select({ total: sum(orders.pricePaidInCents) }).from(orders),
-    // Total Orders
-    db.select({ count: count() }).from(orders),
-    // Total Products
-    db.select({ count: count() }).from(products),
-    // Total Customers
-    db
-      .selectDistinct({ userId: orders.userId })
-      .from(orders)
-      .then((res) => res.length),
-    // Recent Orders (last 5)
-    db
-      .select({
-        orderId: orders.id,
-        pricePaid: orders.pricePaidInCents,
-        createdAt: orders.createdAt,
-        productName: products.name,
-        userEmail: users.email,
-        userName: users.name,
-      })
-      .from(orders)
-      .innerJoin(products, eq(orders.productId, products.id))
-      .innerJoin(users, eq(orders.userId, users.id))
-      .orderBy(desc(orders.createdAt))
-      .limit(5),
-    // Top Products by sales
-    db
-      .select({
-        productId: products.id,
-        productName: products.name,
-        salesCount: count(orders.id),
-        totalRevenue: sum(orders.pricePaidInCents),
-      })
-      .from(products)
-      .leftJoin(orders, eq(products.id, orders.productId))
-      .groupBy(products.id)
-      .orderBy(desc(count(orders.id)))
-      .limit(5),
-  ]);
+  } = await getAdminDashboardData();
 
   const totalRevenue = Number(totalRevenueResult[0]?.total ?? 0);
   const totalOrders = totalOrdersResult[0]?.count ?? 0;
@@ -173,7 +306,82 @@ export default async function AdminDashboardPage() {
       bgGlow: "bg-amber-500/20",
     },
   ];
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        {stats.map((stat, index) => (
+          <div
+            key={stat.name}
+            className="relative group rounded-2xl border border-border bg-card p-6 overflow-hidden transition-all duration-300 hover:border-border/80 hover:shadow-xl"
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            {/* Background glow effect */}
+            <div
+              className={`absolute -top-12 -right-12 h-32 w-32 rounded-full ${stat.bgGlow} blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+            />
 
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${stat.color} text-white shadow-lg`}
+                >
+                  {stat.icon}
+                </div>
+              </div>
+              <p className="text-3xl font-heading font-bold text-foreground mb-1">
+                {stat.value}
+              </p>
+              <p className="text-sm font-medium text-foreground">{stat.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stat.description}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// Top Products Function
+async function TopProductsList() {
+  const { topProductsList } = await getAdminDashboardData();
+  return (
+    <>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="text-lg font-heading font-bold text-foreground mb-4">
+          Top Performers
+        </h2>
+        {topProductsList.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No sales data yet
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {topProductsList.map((product, index) => (
+              <div key={product.productId} className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-sm font-bold text-muted-foreground">
+                  #{index + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {product.productName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {product.salesCount} sales •{" "}
+                    {formatCurrency(Number(product.totalRevenue ?? 0))}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+export default function AdminDashboardPage() {
   const quickActions = [
     {
       name: "Deploy Asset",
@@ -273,38 +481,9 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* STATS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {stats.map((stat, index) => (
-          <div
-            key={stat.name}
-            className="relative group rounded-2xl border border-border bg-card p-6 overflow-hidden transition-all duration-300 hover:border-border/80 hover:shadow-xl"
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            {/* Background glow effect */}
-            <div
-              className={`absolute -top-12 -right-12 h-32 w-32 rounded-full ${stat.bgGlow} blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-            />
-
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br ${stat.color} text-white shadow-lg`}
-                >
-                  {stat.icon}
-                </div>
-              </div>
-              <p className="text-3xl font-heading font-bold text-foreground mb-1">
-                {stat.value}
-              </p>
-              <p className="text-sm font-medium text-foreground">{stat.name}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stat.description}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
+      <Suspense fallback={<StatusGridSkeleton />}>
+        <StatusGrid />
+      </Suspense>
       {/* MAIN CONTENT GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* RECENT ORDERS */}
@@ -328,84 +507,9 @@ export default async function AdminDashboardPage() {
               </Button>
             </Link>
           </div>
-
-          {recentOrdersList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-4">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              </div>
-              <p className="text-lg font-medium text-foreground mb-1">
-                No transactions yet
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Orders will appear here
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader className="bg-secondary/30">
-                <TableRow className="hover:bg-transparent border-border">
-                  <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground py-4">
-                    Customer
-                  </TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Product
-                  </TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Amount
-                  </TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    Date
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentOrdersList.map((order) => (
-                  <TableRow
-                    key={order.orderId}
-                    className="border-border hover:bg-secondary/20"
-                  >
-                    <TableCell className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-linear-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-                          {order.userEmail?.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground truncate max-w-37.5">
-                            {order.userName}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate max-w-37.5">
-                            {order.userEmail}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground">
-                      {order.productName}
-                    </TableCell>
-                    <TableCell className="text-sm font-semibold text-emerald-400">
-                      {formatCurrency(order.pricePaid)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(order.createdAt)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <Suspense fallback={<RecentOrdersListSkeleton />}>
+            <RecentOrdersList />
+          </Suspense>
         </div>
 
         {/* SIDEBAR */}
@@ -439,38 +543,9 @@ export default async function AdminDashboardPage() {
           </div>
 
           {/* TOP PRODUCTS */}
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-heading font-bold text-foreground mb-4">
-              Top Performers
-            </h2>
-            {topProductsList.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No sales data yet
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {topProductsList.map((product, index) => (
-                  <div
-                    key={product.productId}
-                    className="flex items-center gap-3"
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-sm font-bold text-muted-foreground">
-                      #{index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {product.productName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {product.salesCount} sales •{" "}
-                        {formatCurrency(Number(product.totalRevenue ?? 0))}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <Suspense fallback={<TopProductsListSkeleton />}>
+            <TopProductsList />
+          </Suspense>
         </div>
       </div>
     </div>

@@ -4,12 +4,11 @@ import { db } from "@/db";
 import { products } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-// We extend the schema because the form sends 'priceInDollars', but DB wants 'cents'
 const productFormSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -30,7 +29,7 @@ export async function addProduct(
     return { error: "Unauthorized" };
   }
 
-  // 1. Validate Form Data
+  // Validate Form Data
   const result = productFormSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
@@ -61,6 +60,7 @@ export async function addProduct(
   }
 
   // Revalidate & Redirect
+  revalidateTag("admin-products", { expire: 0 });
   redirect("/admin/products");
 }
 

@@ -17,9 +17,8 @@ export async function createCheckoutSession(productId: number) {
     headers: await headers(),
   });
 
-  // 1. Specific Auth Check
+  // Specific Auth Check
   if (!session?.user) {
-    // Return a specific object so the frontend knows EXACTLY what to do
     return { error: "unauthorized" };
   }
 

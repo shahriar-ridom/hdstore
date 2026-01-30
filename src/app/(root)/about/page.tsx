@@ -149,7 +149,7 @@ export default function AboutPage() {
             </div>
 
             {/* Stats Grid */}
-            <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-2xl overflow-hidden border border-border backdrop-blur-xl">
+            <dl className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-2xl overflow-hidden border border-border backdrop-blur-xl">
               {stats.map((stat, index) => (
                 <div
                   key={index}
@@ -163,7 +163,7 @@ export default function AboutPage() {
                   </dd>
                 </div>
               ))}
-            </div>
+            </dl>
           </div>
         </section>
 

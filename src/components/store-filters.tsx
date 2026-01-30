@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useQueryState, parseAsInteger } from "nuqs";
+import { useEffect, useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/debouncer";
@@ -16,13 +16,6 @@ interface StoreFiltersProps {
     available: number;
     unavailable: number;
   };
-  currentFilters: {
-    search: string;
-    sort: string;
-    minPrice?: string;
-    maxPrice?: string;
-    availability: string;
-  };
 }
 
 const sortOptions = [
@@ -34,103 +27,112 @@ const sortOptions = [
   { value: "name-za", label: "Name: Z to A" },
 ];
 
-export function StoreFilters({
-  priceRange,
-  counts,
-  currentFilters,
-}: StoreFiltersProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export function StoreFilters({ priceRange, counts }: StoreFiltersProps) {
   const [isPending, startTransition] = useTransition();
 
-  const [search, setSearch] = useState(currentFilters.search || "");
-  const [minPriceInput, setMinPriceInput] = useState(
-    currentFilters.minPrice || "",
+  // URL STATE MANAGERS
+  const [searchParam, setSearchParam] = useQueryState("search", {
+    defaultValue: "",
+    shallow: false,
+  });
+
+  const [sortParam, setSortParam] = useQueryState("sort", {
+    defaultValue: "newest",
+    shallow: false,
+  });
+
+  const [minPriceParam, setMinPriceParam] = useQueryState(
+    "minPrice",
+    parseAsInteger.withOptions({ shallow: false }),
   );
-  const [maxPriceInput, setMaxPriceInput] = useState(
-    currentFilters.maxPrice || "",
+
+  const [maxPriceParam, setMaxPriceParam] = useQueryState(
+    "maxPrice",
+    parseAsInteger.withOptions({ shallow: false }),
+  );
+
+  const [availabilityParam, setAvailabilityParam] = useQueryState(
+    "availability",
+    { defaultValue: "all", shallow: false },
+  );
+
+  // LOCAL UI STATE
+  const [localSearch, setLocalSearch] = useState(searchParam);
+  const [localMinPrice, setLocalMinPrice] = useState(
+    minPriceParam?.toString() || "",
+  );
+  const [localMaxPrice, setLocalMaxPrice] = useState(
+    maxPriceParam?.toString() || "",
   );
   const [showFilters, setShowFilters] = useState(false);
 
-  const debouncedSearch = useDebounce(search, 300);
-  const debouncedMinPrice = useDebounce(minPriceInput, 400);
-  const debouncedMaxPrice = useDebounce(maxPriceInput, 400);
+  // DEBOUNCERS
+  const debouncedSearch = useDebounce(localSearch, 300);
+  const debouncedMinPrice = useDebounce(localMinPrice, 400);
+  const debouncedMaxPrice = useDebounce(localMaxPrice, 400);
 
-  const createQueryString = useCallback(
-    (params: Record<string, string | undefined>) => {
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-
-      Object.entries(params).forEach(([key, value]) => {
-        if (value === undefined || value === "") {
-          newSearchParams.delete(key);
-        } else {
-          newSearchParams.set(key, value);
-        }
-      });
-
-      return newSearchParams.toString();
-    },
-    [searchParams],
-  );
-
-  const updateFilters = useCallback(
-    (params: Record<string, string | undefined>) => {
+  // Sync Search
+  useEffect(() => {
+    if (debouncedSearch !== searchParam) {
       startTransition(() => {
-        const queryString = createQueryString(params);
-        router.push(`/store${queryString ? `?${queryString}` : ""}`);
+        setSearchParam(debouncedSearch || null);
       });
-    },
-    [createQueryString, router],
-  );
-
-  useEffect(() => {
-    const currentSearch = currentFilters.search || "";
-    if (debouncedSearch !== currentSearch) {
-      updateFilters({ search: debouncedSearch || undefined });
     }
-  }, [debouncedSearch, currentFilters.search, updateFilters]);
+  }, [debouncedSearch, searchParam, setSearchParam]);
 
-  // Debounced price filter updates
+  // Sync Min Price
   useEffect(() => {
-    const currentMin = currentFilters.minPrice || "";
-    if (debouncedMinPrice !== currentMin) {
-      updateFilters({ minPrice: debouncedMinPrice || undefined });
+    const val = debouncedMinPrice ? parseInt(debouncedMinPrice) : null;
+    if (val !== minPriceParam) {
+      startTransition(async () => {
+        await setMinPriceParam(val);
+      });
     }
-  }, [debouncedMinPrice, currentFilters.minPrice, updateFilters]);
+  }, [debouncedMinPrice, minPriceParam, setMinPriceParam]);
 
+  // Sync Max Price
   useEffect(() => {
-    const currentMax = currentFilters.maxPrice || "";
-    if (debouncedMaxPrice !== currentMax) {
-      updateFilters({ maxPrice: debouncedMaxPrice || undefined });
+    const val = debouncedMaxPrice ? parseInt(debouncedMaxPrice) : null;
+    if (val !== maxPriceParam) {
+      startTransition(async () => {
+        await setMaxPriceParam(val);
+      });
     }
-  }, [debouncedMaxPrice, currentFilters.maxPrice, updateFilters]);
+  }, [debouncedMaxPrice, maxPriceParam, setMaxPriceParam]);
 
+  // Handle Search Submit
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateFilters({ search: search || undefined });
+    setSearchParam(localSearch || null);
   };
 
   const clearFilters = () => {
-    setSearch("");
-    setMinPriceInput("");
-    setMaxPriceInput("");
-    startTransition(() => {
-      router.push("/store");
+    setLocalSearch("");
+    setLocalMinPrice("");
+    setLocalMaxPrice("");
+
+    // Batch updates to URL
+    startTransition(async () => {
+      await setSearchParam(null);
+      await setMinPriceParam(null);
+      await setMaxPriceParam(null);
+      await setAvailabilityParam(null);
+      await setSortParam(null);
     });
   };
 
+  // Derived state for UI
   const hasActiveFilters =
-    currentFilters.search ||
-    currentFilters.minPrice ||
-    currentFilters.maxPrice ||
-    currentFilters.availability !== "all" ||
-    currentFilters.sort !== "newest";
+    searchParam ||
+    minPriceParam ||
+    maxPriceParam ||
+    availabilityParam !== "all" ||
+    sortParam !== "newest";
 
   return (
     <div className="mb-8 space-y-4">
       {/* Search and Sort Bar */}
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Search Input */}
         <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2">
           <div className="relative flex-1">
             <svg
@@ -149,14 +151,14 @@ export function StoreFilters({
             <Input
               type="text"
               placeholder="Search assets..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
               className="pl-10 h-11 rounded-xl bg-secondary/50 border-border focus:border-primary"
             />
           </div>
           <Button
             type="submit"
-            className="h-11 px-6 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-11 px-6 rounded-xl bg-primary text-primary-foreground! hover:bg-primary/90"
             disabled={isPending}
           >
             {isPending ? (
@@ -187,8 +189,8 @@ export function StoreFilters({
 
         <div className="flex gap-2">
           <select
-            value={currentFilters.sort}
-            onChange={(e) => updateFilters({ sort: e.target.value })}
+            value={sortParam || "newest"}
+            onChange={(e) => setSortParam(e.target.value)}
             className="h-11 px-4 rounded-xl bg-secondary/50 border border-border text-foreground text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
           >
             {sortOptions.map((option) => (
@@ -238,19 +240,6 @@ export function StoreFilters({
             {/* Price Range */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-muted-foreground"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
                 Price Range
               </label>
               <div className="flex items-center gap-3">
@@ -262,8 +251,8 @@ export function StoreFilters({
                     type="number"
                     placeholder={priceRange.min.toString()}
                     min={0}
-                    value={minPriceInput}
-                    onChange={(e) => setMinPriceInput(e.target.value)}
+                    value={localMinPrice}
+                    onChange={(e) => setLocalMinPrice(e.target.value)}
                     className="pl-7 h-10 rounded-lg bg-secondary/30"
                   />
                 </div>
@@ -276,33 +265,17 @@ export function StoreFilters({
                     type="number"
                     placeholder={priceRange.max.toString()}
                     min={0}
-                    value={maxPriceInput}
-                    onChange={(e) => setMaxPriceInput(e.target.value)}
+                    value={localMaxPrice}
+                    onChange={(e) => setLocalMaxPrice(e.target.value)}
                     className="pl-7 h-10 rounded-lg bg-secondary/30"
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Range: ${priceRange.min} - ${priceRange.max}
-              </p>
             </div>
 
             {/* Availability Filter */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-muted-foreground"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
                 Availability
               </label>
               <div className="flex flex-wrap gap-2">
@@ -321,11 +294,9 @@ export function StoreFilters({
                 ].map((option) => (
                   <button
                     key={option.value}
-                    onClick={() =>
-                      updateFilters({ availability: option.value })
-                    }
+                    onClick={() => setAvailabilityParam(option.value)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      currentFilters.availability === option.value
+                      (availabilityParam || "all") === option.value
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary/50 text-foreground hover:bg-secondary"
                     }`}
@@ -337,22 +308,9 @@ export function StoreFilters({
               </div>
             </div>
 
-            {/* Clear Filters */}
+            {/* Clear Actions */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-muted-foreground"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
+              <label className="text-sm font-medium text-foreground">
                 Actions
               </label>
               <Button
@@ -362,19 +320,6 @@ export function StoreFilters({
                 disabled={!hasActiveFilters}
                 className="w-full h-10 rounded-lg border-border hover:bg-secondary disabled:opacity-50"
               >
-                <svg
-                  className="w-4 h-4 mr-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
                 Clear All Filters
               </Button>
             </div>
@@ -386,45 +331,43 @@ export function StoreFilters({
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">Active filters:</span>
-          {currentFilters.search && (
+          {searchParam && (
             <FilterTag
-              label={`Search: "${currentFilters.search}"`}
+              label={`Search: "${searchParam}"`}
               onRemove={() => {
-                setSearch("");
-                updateFilters({ search: undefined });
+                setLocalSearch("");
+                setSearchParam(null);
               }}
             />
           )}
-          {currentFilters.minPrice && (
+          {minPriceParam !== null && (
             <FilterTag
-              label={`Min: $${currentFilters.minPrice}`}
+              label={`Min: $${minPriceParam}`}
               onRemove={() => {
-                setMinPriceInput("");
-                updateFilters({ minPrice: undefined });
+                setLocalMinPrice("");
+                setMinPriceParam(null);
               }}
             />
           )}
-          {currentFilters.maxPrice && (
+          {maxPriceParam !== null && (
             <FilterTag
-              label={`Max: $${currentFilters.maxPrice}`}
+              label={`Max: $${maxPriceParam}`}
               onRemove={() => {
-                setMaxPriceInput("");
-                updateFilters({ maxPrice: undefined });
+                setLocalMaxPrice("");
+                setMaxPriceParam(null);
               }}
             />
           )}
-          {currentFilters.availability !== "all" && (
+          {availabilityParam && availabilityParam !== "all" && (
             <FilterTag
-              label={`Status: ${currentFilters.availability}`}
-              onRemove={() => updateFilters({ availability: "all" })}
+              label={`Status: ${availabilityParam}`}
+              onRemove={() => setAvailabilityParam(null)}
             />
           )}
-          {currentFilters.sort !== "newest" && (
+          {sortParam && sortParam !== "newest" && (
             <FilterTag
-              label={`Sort: ${
-                sortOptions.find((o) => o.value === currentFilters.sort)?.label
-              }`}
-              onRemove={() => updateFilters({ sort: "newest" })}
+              label={`Sort: ${sortOptions.find((o) => o.value === sortParam)?.label}`}
+              onRemove={() => setSortParam(null)}
             />
           )}
         </div>

@@ -1,100 +1,132 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getSession } from "@/lib/session";
+import { Suspense } from "react";
+import { ClientRedirect } from "@/components/admin/client-redirect";
 
-export default async function AdminLayout({
+// Sidebar Navigation Data
+const NAV_ITEMS = [
+  {
+    name: "Overview",
+    href: "/admin",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+        />
+      </svg>
+    ),
+  },
+  {
+    name: "Products",
+    href: "/admin/products",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+        />
+      </svg>
+    ),
+  },
+  {
+    name: "Sales",
+    href: "/admin/orders",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+    ),
+  },
+  {
+    name: "Customers",
+    href: "/admin/users",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+        />
+      </svg>
+    ),
+  },
+];
+
+// Dynamic Profile Component
+async function AdminProfile() {
+  const session = await getSession();
+
+  if (!session || session.user.role !== "admin") {
+    return <ClientRedirect to="/" />;
+  }
+
+  return (
+    <div className="rounded-lg bg-secondary/50 border border-white/5 p-3 flex items-center gap-3 animate-in fade-in duration-500">
+      <div className="h-8 w-8 rounded-full bg-linear-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">
+        {session.user.name?.charAt(0) || "A"}
+      </div>
+      <div className="overflow-hidden">
+        <p className="text-sm font-medium text-foreground truncate">
+          {session.user.name}
+        </p>
+        <p className="text-xs text-muted-foreground truncate opacity-70">
+          Administrator
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Loading Skeleton for Profile
+function AdminProfileSkeleton() {
+  return (
+    <div className="rounded-lg bg-secondary/30 border border-white/5 p-3 flex items-center gap-3">
+      <div className="h-8 w-8 rounded-full bg-muted/50 animate-pulse" />
+      <div className="flex-1 space-y-1.5">
+        <div className="h-3 w-20 bg-muted/50 rounded animate-pulse" />
+        <div className="h-2 w-16 bg-muted/30 rounded animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+// The Admin Layout (Static Shell)
+export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session || session.user.role !== "admin") {
-    redirect("/");
-  }
-
-  const navItems = [
-    {
-      name: "Overview",
-      href: "/admin",
-      icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-          />
-        </svg>
-      ),
-    },
-    {
-      name: "Products",
-      href: "/admin/products",
-      icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-          />
-        </svg>
-      ),
-    },
-    {
-      name: "Sales",
-      href: "/admin/orders",
-      icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-    },
-    {
-      name: "Customers",
-      href: "/admin/users",
-      icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-          />
-        </svg>
-      ),
-    },
-  ];
-
   return (
     <div className="flex min-h-screen flex-col md:flex-row bg-background text-foreground font-sans selection:bg-purple-500/30">
       {/* SIDEBAR COMMAND DECK */}
@@ -132,20 +164,10 @@ export default async function AdminLayout({
             </div>
           </div>
 
-          {/* User Profile Mini-Card */}
-          <div className="rounded-lg bg-secondary/50 border border-white/5 p-3 flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-linear-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">
-              {session.user.name?.charAt(0) || "A"}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-foreground truncate">
-                {session.user.name}
-              </p>
-              <p className="text-xs text-muted-foreground truncate opacity-70">
-                Administrator
-              </p>
-            </div>
-          </div>
+          {/* User Profile */}
+          <Suspense fallback={<AdminProfileSkeleton />}>
+            <AdminProfile />
+          </Suspense>
         </div>
 
         {/* Navigation Links */}
@@ -153,7 +175,7 @@ export default async function AdminLayout({
           <p className="px-2 text-xs font-bold text-muted-foreground/50 uppercase tracking-widest mb-3">
             Management
           </p>
-          {navItems.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <Link
               key={item.name}
               href={item.href}

@@ -5,7 +5,6 @@ export function Footer() {
     <footer className="border-t border-border bg-background/50 backdrop-blur-xl pt-16 pb-8">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-12 xl:gap-0">
-          {/* 1. BRAND INTELLIGENCE */}
           <div className="space-y-4 max-w-md">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
@@ -28,7 +27,7 @@ export function Footer() {
                   Shahriar<span className="text-muted-foreground">Assets</span>
                 </span>
                 <span className="text-xs text-muted-foreground font-medium tracking-wide">
-                  EST. 2025 • DHAKA
+                  EST. 2026 • DHAKA
                 </span>
               </div>
             </div>
@@ -37,7 +36,7 @@ export function Footer() {
             </p>
           </div>
 
-          {/* 2. NEWSLETTER (The "Alpha" Stream) */}
+          {/* NEWSLETTER */}
           <div className="w-full xl:w-auto">
             <form className="relative flex max-w-xs xl:max-w-sm w-full">
               <input
@@ -56,7 +55,7 @@ export function Footer() {
           </div>
         </div>
 
-        {/* 3. SYSTEM STATUS & LEGAL (The Fine Print) */}
+        {/* SYSTEM STATUS & LEGAL */}
         <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Operational Badge */}
           <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-1 backdrop-blur-md">
@@ -83,8 +82,8 @@ export function Footer() {
           </div>
 
           {/* Copyright */}
-          <p className="text-xs text-muted-foreground/60">
-            &copy; {new Date().getFullYear()} Shahriar Inc.
+          <p className="text-xs text-muted-foreground">
+            &copy; 2026 Shahriar Inc.
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { Footer } from "@/components/footer";
 import { Navbar } from "@/components/navbar";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 export default function ShopLayout({
   children,
@@ -9,8 +10,10 @@ export default function ShopLayout({
   return (
     <>
       <Navbar />
-      <main className="min-h-screen">{children}</main>
+      <main className="min-h-screen">
+        <NuqsAdapter>{children}</NuqsAdapter>
+      </main>
       <Footer />
     </>
-  );
+);
 }

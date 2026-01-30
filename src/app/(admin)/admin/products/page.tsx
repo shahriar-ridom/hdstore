@@ -1,7 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { db } from "@/db";
-import { products, orders } from "@/db/schema";
-import { eq, count, desc } from "drizzle-orm";
 import Link from "next/link";
 import {
   Table,
@@ -13,22 +10,184 @@ import {
 } from "@/components/ui/table";
 import { toggleProductAvailability } from "@/app/actions/products";
 import { ProductActions } from "@/components/admin/product-actions";
+import { getAdminProductsData } from "@/lib/data/admin";
+import { Suspense } from "react";
 
-export default async function AdminProductsPage() {
-  const productList = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      priceInCents: products.priceInCents,
-      isAvailable: products.isAvailable,
-      ordersCount: count(orders.id),
-      createdAt: products.createdAt,
-    })
-    .from(products)
-    .leftJoin(orders, eq(products.id, orders.productId))
-    .groupBy(products.id)
-    .orderBy(desc(products.createdAt));
+function ProductsTableSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <Table>
+        <TableHeader className="bg-secondary/30">
+          <TableRow className="hover:bg-transparent border-border">
+            <TableHead className="w-75 text-xs font-bold uppercase tracking-widest text-muted-foreground py-5">
+              Asset Identity
+            </TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Valuation
+            </TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Total Sales
+            </TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Status Protocol
+            </TableHead>
+            <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-muted-foreground pr-6">
+              Operations
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(5)].map((_, i) => (
+            <TableRow key={i} className="border-border/50">
+              <TableCell className="py-4">
+                <div className="flex flex-col gap-2">
+                  <div className="h-4 w-32 bg-secondary/50 rounded animate-pulse" />
+                  <div className="h-3 w-24 bg-secondary/30 rounded animate-pulse" />
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="h-4 w-20 bg-secondary/50 rounded animate-pulse" />
+              </TableCell>
+              <TableCell>
+                <div className="h-6 w-16 bg-secondary/50 rounded-lg animate-pulse" />
+              </TableCell>
+              <TableCell>
+                <div className="h-6 w-24 bg-secondary/50 rounded-full animate-pulse" />
+              </TableCell>
+              <TableCell className="text-right pr-6">
+                <div className="flex justify-end">
+                  <div className="h-8 w-8 bg-secondary/50 rounded animate-pulse" />
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
+async function ProductsData() {
+  const productList = await getAdminProductsData();
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <Table>
+        <TableHeader className="bg-secondary/30">
+          <TableRow className="hover:bg-transparent border-border">
+            <TableHead className="w-75 text-xs font-bold uppercase tracking-widest text-muted-foreground py-5">
+              Asset Identity
+            </TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Valuation
+            </TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Total Sales
+            </TableHead>
+            <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Status Protocol
+            </TableHead>
+            <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-muted-foreground pr-6">
+              Operations
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {productList.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="h-64 text-center">
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20 12H4M12 20V4"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-medium text-foreground">
+                    No assets found
+                  </p>
+                </div>
+              </TableCell>
+            </TableRow>
+          ) : (
+            productList.map((product) => (
+              <TableRow
+                key={product.id}
+                className="group hover:bg-secondary/40 transition-colors border-border/50"
+              >
+                {/* Name & Date */}
+                <TableCell className="py-4">
+                  <div className="flex flex-col">
+                    <span className="font-heading font-bold text-base text-foreground group-hover:text-primary transition-colors">
+                      {product.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-mono mt-1">
+                      Deployed:{" "}
+                      {new Date(product.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </TableCell>
+
+                {/* Price */}
+                <TableCell>
+                  <div className="font-mono text-sm font-medium text-foreground">
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "USD",
+                    }).format(product.priceInCents / 100)}
+                  </div>
+                </TableCell>
+
+                {/* Sales Count */}
+                <TableCell>
+                  <div className="inline-flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium text-foreground border border-border">
+                    <svg
+                      className="w-3 h-3 text-muted-foreground"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      />
+                    </svg>
+                    {product.ordersCount}
+                  </div>
+                </TableCell>
+
+                {/* Availability Toggle */}
+                <TableCell>
+                  <AvailabilityToggle
+                    productId={product.id}
+                    isAvailable={product.isAvailable}
+                  />
+                </TableCell>
+                <TableCell className="text-right pr-6">
+                  <div className="flex justify-end [&&_svg]:text-white! [&&_button]:text-white! hover:[&&_svg]:text-primary!">
+                    <ProductActions id={product.id} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+export default function AdminProductsPage() {
   return (
     <div className="space-y-8 p-8">
       {/* HEADER SECTION */}
@@ -53,127 +212,14 @@ export default async function AdminProductsPage() {
       </div>
 
       {/* DATA TABLE */}
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <Table>
-          <TableHeader className="bg-secondary/30">
-            <TableRow className="hover:bg-transparent border-border">
-              <TableHead className="w-75 text-xs font-bold uppercase tracking-widest text-muted-foreground py-5">
-                Asset Identity
-              </TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Valuation
-              </TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Total Sales
-              </TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Status Protocol
-              </TableHead>
-              <TableHead className="text-right text-xs font-bold uppercase tracking-widest text-muted-foreground pr-6">
-                Operations
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {productList.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-64 text-center">
-                  <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
-                      <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20 12H4M12 20V4"
-                        />
-                      </svg>
-                    </div>
-                    <p className="text-lg font-medium text-foreground">
-                      No assets found
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              productList.map((product) => (
-                <TableRow
-                  key={product.id}
-                  className="group hover:bg-secondary/40 transition-colors border-border/50"
-                >
-                  {/* Name & Date */}
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="font-heading font-bold text-base text-foreground group-hover:text-primary transition-colors">
-                        {product.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground font-mono mt-1">
-                        Deployed:{" "}
-                        {new Date(product.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </TableCell>
-
-                  {/* Price */}
-                  <TableCell>
-                    <div className="font-mono text-sm font-medium text-foreground">
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                      }).format(product.priceInCents / 100)}
-                    </div>
-                  </TableCell>
-
-                  {/* Sales Count */}
-                  <TableCell>
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium text-foreground border border-border">
-                      <svg
-                        className="w-3 h-3 text-muted-foreground"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                        />
-                      </svg>
-                      {product.ordersCount}
-                    </div>
-                  </TableCell>
-
-                  {/* Availability Toggle */}
-                  <TableCell>
-                    <AvailabilityToggle
-                      productId={product.id}
-                      isAvailable={product.isAvailable}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right pr-6">
-                    <div className="flex justify-end [&&_svg]:text-white! [&&_button]:text-white! hover:[&&_svg]:text-primary!">
-                      <ProductActions id={product.id} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Suspense fallback={<ProductsTableSkeleton />}>
+        <ProductsData />
+      </Suspense>
     </div>
   );
 }
 
-// ------------------------------------------------------------------
 // COMPONENT: Availability Toggle
-// ------------------------------------------------------------------
 function AvailabilityToggle({
   productId,
   isAvailable,
