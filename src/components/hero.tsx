@@ -65,7 +65,7 @@ export function Hero() {
                 />
               </svg>
               <div className="absolute inset-0 -translate-x-full group-hover:animate-shimmer bg-linear-to-r from-transparent via-black/10 to-transparent" />
-            </a>
+            </Link>
           </div>
 
           {/* HUD STATS BAR */}
