@@ -4,6 +4,12 @@ import { ProductCard } from "@/components/product-card";
 import { Hero } from "@/components/hero";
 import { desc, eq, count } from "drizzle-orm";
 import { FeaturesSection } from "@/components/feature";
+import { Suspense } from "react";
+import {
+  HeroSkeleton,
+  ProductCardSkeleton,
+  ProductGridSkeleton,
+} from "@/components/loading-skeleton";
 
 export default async function Home() {
   // Get top 3 best-selling products
@@ -38,7 +44,9 @@ export default async function Home() {
       <div className="relative z-10">
         {/* HERO SECTION */}
         <div className="relative border-b border-border bg-background/50 backdrop-blur-sm">
-          <Hero />
+          <Suspense fallback={<HeroSkeleton />}>
+            <Hero />
+          </Suspense>
         </div>
 
         {/* PRODUCTS SECTION */}
@@ -87,15 +95,19 @@ export default async function Home() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {topSellingProducts.map((product, index) => (
-                  <div
-                    key={product.id}
-                    className="animate-in fade-in zoom-in-95 duration-500 fill-mode-forwards"
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    <ProductCard product={product} />
-                  </div>
-                ))}
+                <Suspense fallback={<ProductGridSkeleton />}>
+                  {topSellingProducts.map((product, index) => (
+                    <div
+                      key={product.id}
+                      className="animate-in fade-in zoom-in-95 duration-500 fill-mode-forwards"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <Suspense fallback={<ProductCardSkeleton />}>
+                        <ProductCard product={product} />
+                      </Suspense>
+                    </div>
+                  ))}
+                </Suspense>
               </div>
             )}
           </div>
@@ -103,7 +115,6 @@ export default async function Home() {
 
         {/* FEATURES SECTION */}
         <FeaturesSection />
-
       </div>
     </div>
   );

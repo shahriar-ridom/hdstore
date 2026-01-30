@@ -9,7 +9,6 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-// We extend the schema because the form sends 'priceInDollars', but DB wants 'cents'
 const productFormSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -30,7 +29,7 @@ export async function addProduct(
     return { error: "Unauthorized" };
   }
 
-  // 1. Validate Form Data
+  // Validate Form Data
   const result = productFormSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),

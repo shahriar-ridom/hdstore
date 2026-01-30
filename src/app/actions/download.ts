@@ -8,7 +8,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function createDownloadLink(orderId: string) {
-  // 1. Auth Check
+  // Auth Check
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -17,8 +17,6 @@ export async function createDownloadLink(orderId: string) {
     return { error: "Unauthorized" };
   }
 
-  // 2. Security Check: Does the user own this specific order?
-  // We query the order AND ensure the userId matches the session.
   const [order] = await db
     .select()
     .from(orders)
@@ -32,8 +30,6 @@ export async function createDownloadLink(orderId: string) {
     return { error: "Order not found or access denied" };
   }
 
-  // 3. Create the "One-Day Pass" (Download Verification)
-  // This creates a UUID in the DB that is valid for 24 hours.
   const [verification] = await db
     .insert(downloadVerifications)
     .values({
@@ -41,7 +37,5 @@ export async function createDownloadLink(orderId: string) {
     })
     .returning({ id: downloadVerifications.id });
 
-  // 4. Redirect to the API Route
-  // This API route (which we built in Step 4) will trade this ID for an R2 Signed URL
   redirect(`/api/download/${verification.id}`);
 }

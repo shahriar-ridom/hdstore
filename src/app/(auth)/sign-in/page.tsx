@@ -6,9 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-// ------------------------------------------------------------------
 // THE FORM COMPONENT
-// ------------------------------------------------------------------
 function AuthForm() {
   const [isSignIn, setIsSignIn] = useState(true);
   const [email, setEmail] = useState("");
