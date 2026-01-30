@@ -6,7 +6,6 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// Initialize Stripe with your Secret Key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-12-15.clover",
   typescript: true,
@@ -14,11 +13,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = (await headers()).get("Stripe-Signature") as string;
+  const headerList = await headers();
+  const signature = headerList.get("stripe-signature");
+
+  if (!signature) {
+    return new NextResponse("No signature", { status: 400 });
+  }
 
   let event: Stripe.Event;
 
-  // Verify the Security Signature
   try {
     event = stripe.webhooks.constructEvent(
       body,
@@ -26,43 +29,39 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`Webhook Signature Error: ${message}`);
-    return new NextResponse(`Webhook Error: ${message}`, { status: 400 });
+    return new NextResponse("Invalid signature", { status: 400 });
   }
 
-  // Handle the "Checkout Completed" Event
+  // Handle fulfillment
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
 
-    // Extract the Metadata we sent during checkout
     const userId = session.metadata?.userId;
     const productIdRaw = session.metadata?.productId;
     const paymentIntentId = session.payment_intent as string;
     const totalAmount = session.amount_total;
 
-    // Validation: If data is missing, we can't fulfill the order.
+    // Better Validation
     if (!userId || !productIdRaw || !totalAmount || !paymentIntentId) {
-      console.error("Missing metadata in Stripe Webhook", session.metadata);
-      return new NextResponse("Webhook Error: Missing Metadata", {
-        status: 400,
-      });
+      return new NextResponse("Missing Metadata", { status: 400 });
     }
 
     const productId = parseInt(productIdRaw);
+    if (isNaN(productId)) {
+      return new NextResponse("Invalid Product ID", { status: 400 });
+    }
 
     try {
-      // Idempotency Check
+      // Idempotency Check using Drizzle query API
       const existingOrder = await db.query.orders.findFirst({
         where: eq(orders.stripePaymentIntentId, paymentIntentId),
       });
 
       if (existingOrder) {
-        console.log("Order already exists. Skipping.");
-        return new NextResponse("Order already exists", { status: 200 });
+        return new NextResponse("Order already processed", { status: 200 });
       }
 
-      // Insert the Order
+      // Database Transaction
       await db.insert(orders).values({
         userId,
         productId,
@@ -70,21 +69,17 @@ export async function POST(req: Request) {
         stripePaymentIntentId: paymentIntentId,
       });
 
-      console.log(`✅ Order created for User ${userId}, Product ${productId}`);
+      // Only revalidate if we actually updated the database
+      revalidatePath("/orders");
+      revalidateTag("admin-dashboard", "max");
+      revalidateTag("admin-orders", "max");
 
-      // (Optional) Send Email Here using Resend
-      // await sendReceiptEmail(...)
+      console.log(`✅ Order ${paymentIntentId} fulfilled.`);
     } catch (error) {
-      console.error("Database Error processing webhook:", error);
-      // Return 500 so Stripe knows to retry later if it was a DB blip
-      return new NextResponse("Internal Server Error", { status: 500 });
+      console.error("DB Error:", error);
+      return new NextResponse("Database Error", { status: 500 });
     }
   }
 
-  revalidatePath("/orders");
-  revalidateTag("admin-dashboard", { expire: 0 });
-  revalidateTag("admin-users", { expire: 0 });
-  revalidateTag("admin-products", { expire: 0 });
-  revalidateTag("admin-orders", { expire: 0 });
-  return new NextResponse("Received", { status: 200 });
+  return new NextResponse("Success", { status: 200 });
 }
