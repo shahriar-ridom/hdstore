@@ -70,7 +70,7 @@ export function Hero() {
 
           {/* HUD STATS BAR */}
           <div className="mt-24 w-full max-w-4xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-700 fill-mode-forwards">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border rounded-2xl overflow-hidden backdrop-blur-xl">
+            <dl className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border rounded-2xl overflow-hidden backdrop-blur-xl">
               {[
                 { label: "Total Assets", value: "500+" },
                 { label: "Downloads", value: "12.5K" },
@@ -89,7 +89,7 @@ export function Hero() {
                   </dd>
                 </div>
               ))}
-            </div>
+            </dl>
           </div>
         </div>
       </div>

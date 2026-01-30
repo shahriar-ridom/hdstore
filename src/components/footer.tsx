@@ -82,7 +82,7 @@ export function Footer() {
           </div>
 
           {/* Copyright */}
-          <p className="text-xs text-muted-foreground/60">
+          <p className="text-xs text-muted-foreground">
             &copy; 2026 Shahriar Inc.
           </p>
         </div>

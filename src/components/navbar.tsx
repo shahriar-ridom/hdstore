@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 
@@ -10,15 +10,26 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const rafId = useRef<number>(0);
 
   const { data: session } = useSession();
 
   useEffect(() => {
+    // Use requestAnimationFrame for smoother scroll handling
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      if (rafId.current) return; // Skip if already scheduled
+      rafId.current = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 20);
+        rafId.current = 0;
+      });
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    // Passive listener for better scroll performance
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    };
   }, []);
 
   useEffect(() => {

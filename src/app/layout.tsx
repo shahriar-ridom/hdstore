@@ -7,12 +7,18 @@ const nunitoSans = Nunito_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-nunito-sans",
+  display: "swap",
+  preload: true,
+  fallback: ["system-ui", "sans-serif"],
 });
 
 const rubik = Rubik({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-rubik",
+  display: "swap",
+  preload: true,
+  fallback: ["system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {

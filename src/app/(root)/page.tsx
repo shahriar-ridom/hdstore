@@ -79,16 +79,10 @@ async function TopSellingProducts() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <Suspense fallback={<ProductGridSkeleton />}>
-            {topSellingProducts.map((product, index) => (
-              <div
-                key={product.id}
-                className="animate-in fade-in zoom-in-95 duration-500 fill-mode-forwards"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <Suspense fallback={<ProductCardSkeleton />}>
-                  <ProductCard product={product} />
-                </Suspense>
-              </div>
+            {topSellingProducts.map((product) => (
+              <Suspense key={product.id} fallback={<ProductCardSkeleton />}>
+                <ProductCard product={product} />
+              </Suspense>
             ))}
           </Suspense>
         </div>
