@@ -103,6 +103,7 @@ export default async function Home() {
 
         {/* FEATURES SECTION */}
         <FeaturesSection />
+
       </div>
     </div>
   );
